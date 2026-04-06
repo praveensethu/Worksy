@@ -41,6 +41,16 @@ struct CardView: View {
         .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
         .scaleEffect(isHovered ? 1.02 : 1.0)
         .animation(.easeInOut(duration: 0.15), value: isHovered)
+        .draggable(card.id?.uuidString ?? "") {
+            // Drag preview
+            Text(card.title ?? "Untitled")
+                .font(.system(size: 13))
+                .padding(10)
+                .frame(width: 260)
+                .background(AppTheme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+        }
         .onHover { hovering in
             isHovered = hovering
         }

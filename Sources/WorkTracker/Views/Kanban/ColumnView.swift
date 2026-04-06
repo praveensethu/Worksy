@@ -10,6 +10,7 @@ struct ColumnView: View {
     @State private var isRenaming = false
     @State private var renameText = ""
     @State private var showDeleteConfirmation = false
+    @State private var isDropTargeted = false
 
     private var sortedCards: [Card] {
         (column.cards?.allObjects as? [Card] ?? [])
@@ -47,9 +48,24 @@ struct ColumnView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
             }
+            .frame(maxHeight: .infinity)
+            .dropDestination(for: String.self) { droppedItems, _ in
+                guard let cardIdString = droppedItems.first else { return false }
+                return handleCardDrop(cardIdString: cardIdString, atIndex: sortedCards.count)
+            } isTargeted: { targeted in
+                isDropTargeted = targeted
+            }
         }
         .frame(width: 280)
-        .background(AppTheme.card)
+        .background(isDropTargeted ? accentColor.opacity(0.08) : AppTheme.card)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(
+                    isDropTargeted ? accentColor.opacity(0.5) : Color.clear,
+                    style: StrokeStyle(lineWidth: 2, dash: [6])
+                )
+        )
+        .animation(.easeInOut(duration: 0.15), value: isDropTargeted)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .alert("Delete Column", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
@@ -109,6 +125,47 @@ struct ColumnView: View {
         }
     }
 
+
+    // MARK: - Drag & Drop
+
+    private func handleCardDrop(cardIdString: String, atIndex index: Int) -> Bool {
+        guard let cardUUID = UUID(uuidString: cardIdString) else { return false }
+
+        let request = NSFetchRequest<Card>(entityName: "Card")
+        request.predicate = NSPredicate(format: "id == %@", cardUUID as CVarArg)
+        request.fetchLimit = 1
+
+        guard let card = try? viewContext.fetch(request).first else { return false }
+
+        let oldColumn = card.column
+        let oldColumnName = oldColumn?.name ?? "Unknown"
+        let newColumnName = column.name ?? "Unknown"
+
+        // Move card to this column
+        card.column = column
+
+        // Recalculate sort orders for all cards in target column
+        var cards = sortedCards.filter { $0.id != card.id }
+        let insertAt = min(index, cards.count)
+        cards.insert(card, at: insertAt)
+        for (i, c) in cards.enumerated() {
+            c.sortOrder = Int16(i)
+        }
+
+        // Log cross-column moves via AuditService
+        if oldColumn?.id != column.id {
+            AuditService.shared.logMove(
+                entityType: "Card",
+                entityId: cardUUID,
+                fromColumn: oldColumnName,
+                toColumn: newColumnName,
+                context: viewContext
+            )
+        }
+
+        try? viewContext.save()
+        return true
+    }
 
     // MARK: - CRUD Operations
 
