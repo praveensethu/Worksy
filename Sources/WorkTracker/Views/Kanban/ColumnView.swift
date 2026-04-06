@@ -41,7 +41,7 @@ struct ColumnView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: 8) {
                     ForEach(sortedCards, id: \.id) { card in
-                        cardView(card)
+                        CardView(card: card, accentColor: accentColor)
                     }
                 }
                 .padding(.horizontal, 10)
@@ -109,23 +109,6 @@ struct ColumnView: View {
         }
     }
 
-    // MARK: - Card View
-
-    @ViewBuilder
-    private func cardView(_ card: Card) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(card.title ?? "Untitled")
-                .font(.system(size: 13))
-                .foregroundColor(AppTheme.textPrimary)
-                .lineLimit(3)
-                .multilineTextAlignment(.leading)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(AppTheme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
-        .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-    }
 
     // MARK: - CRUD Operations
 

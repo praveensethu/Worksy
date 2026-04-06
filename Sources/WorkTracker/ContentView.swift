@@ -16,7 +16,7 @@ struct ContentView: View {
             if let boardId = selectedBoardId, let board = fetchBoard(id: boardId) {
                 KanbanBoardView(board: board)
             } else if let noteId = selectedNoteId, let note = fetchNote(id: noteId) {
-                NoteDetailPlaceholder(note: note)
+                NoteEditorView(note: note)
             } else {
                 WelcomeView()
             }
