@@ -30,6 +30,10 @@ struct SidebarView: View {
     @State private var renameText = ""
     @State private var addingNoteToFolderId: UUID?
     @State private var newNoteName = ""
+    @State private var addingSubfolderToFolderId: UUID?
+    @State private var newSubfolderName = ""
+    @State private var folderToDelete: Folder?
+    @State private var showDeleteFolderAlert = false
 
     init(selectedBoardId: Binding<UUID?>, selectedNoteId: Binding<UUID?>) {
         _selectedBoardId = selectedBoardId
@@ -132,6 +136,17 @@ struct SidebarView: View {
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
         .background(AppTheme.sidebar)
+        .alert("Delete Folder?", isPresented: $showDeleteFolderAlert, presenting: folderToDelete) { folder in
+            Button("Cancel", role: .cancel) {
+                folderToDelete = nil
+            }
+            Button("Delete", role: .destructive) {
+                deleteFolder(folder)
+                folderToDelete = nil
+            }
+        } message: { folder in
+            Text("This will permanently delete \"\(folder.name ?? "Untitled")\" and all its subfolders and notes.")
+        }
     }
 
     // MARK: - Board Row
@@ -167,58 +182,90 @@ struct SidebarView: View {
 
     // MARK: - Folder Row
 
-    @ViewBuilder
-    private func folderRow(_ folder: Folder) -> some View {
-        DisclosureGroup {
-            // Notes inside this folder
-            let folderNotes = (folder.notes?.allObjects as? [Note] ?? [])
-                .sorted { ($0.title ?? "") < ($1.title ?? "") }
-            ForEach(folderNotes, id: \.id) { note in
-                if renamingNoteId == note.id {
-                    TextField("Note name", text: $renameText, onCommit: {
-                        renameNote(note)
+    private func folderRow(_ folder: Folder) -> AnyView {
+        AnyView(
+            DisclosureGroup {
+                // Subfolders
+                let subfolders = (folder.children?.allObjects as? [Folder] ?? [])
+                    .sorted { ($0.name ?? "") < ($1.name ?? "") }
+                ForEach(subfolders, id: \.id) { subfolder in
+                    if renamingFolderId == subfolder.id {
+                        TextField("Folder name", text: $renameText, onCommit: {
+                            renameFolder(subfolder)
+                        })
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 13))
+                        .foregroundColor(AppTheme.textPrimary)
+                    } else {
+                        folderRow(subfolder)
+                    }
+                }
+
+                if addingSubfolderToFolderId == folder.id {
+                    TextField("New subfolder name", text: $newSubfolderName, onCommit: {
+                        addSubfolder(to: folder)
                     })
                     .textFieldStyle(.plain)
                     .font(.system(size: 13))
                     .foregroundColor(AppTheme.textPrimary)
-                } else {
-                    noteRow(note)
                 }
-            }
 
-            if addingNoteToFolderId == folder.id {
-                TextField("New note name", text: $newNoteName, onCommit: {
-                    addNote(to: folder)
-                })
-                .textFieldStyle(.plain)
-                .font(.system(size: 13))
-                .foregroundColor(AppTheme.textPrimary)
-            }
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "folder.fill")
-                    .font(.system(size: 12))
-                    .foregroundColor(AppTheme.textSecondary)
-                Text(folder.name ?? "Untitled")
+                // Notes inside this folder
+                let folderNotes = (folder.notes?.allObjects as? [Note] ?? [])
+                    .sorted { ($0.title ?? "") < ($1.title ?? "") }
+                ForEach(folderNotes, id: \.id) { note in
+                    if renamingNoteId == note.id {
+                        TextField("Note name", text: $renameText, onCommit: {
+                            renameNote(note)
+                        })
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 13))
+                        .foregroundColor(AppTheme.textPrimary)
+                    } else {
+                        noteRow(note)
+                    }
+                }
+
+                if addingNoteToFolderId == folder.id {
+                    TextField("New note name", text: $newNoteName, onCommit: {
+                        addNote(to: folder)
+                    })
+                    .textFieldStyle(.plain)
                     .font(.system(size: 13))
                     .foregroundColor(AppTheme.textPrimary)
-                    .lineLimit(1)
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "folder.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color(hex: "#14B8A6"))
+                    Text(folder.name ?? "Untitled")
+                        .font(.system(size: 13))
+                        .foregroundColor(AppTheme.textPrimary)
+                        .lineLimit(1)
+                }
             }
-        }
-        .contextMenu {
-            Button("Add Note") {
-                newNoteName = ""
-                addingNoteToFolderId = folder.id
+            .contextMenu {
+                Button("Add Subfolder") {
+                    newSubfolderName = ""
+                    addingSubfolderToFolderId = folder.id
+                }
+                Button("Add Note") {
+                    newNoteName = ""
+                    addingNoteToFolderId = folder.id
+                }
+                Divider()
+                Button("Rename") {
+                    renameText = folder.name ?? ""
+                    renamingFolderId = folder.id
+                }
+                Divider()
+                Button("Delete", role: .destructive) {
+                    folderToDelete = folder
+                    showDeleteFolderAlert = true
+                }
             }
-            Button("Rename") {
-                renameText = folder.name ?? ""
-                renamingFolderId = folder.id
-            }
-            Divider()
-            Button("Delete", role: .destructive) {
-                deleteFolder(folder)
-            }
-        }
+        )
     }
 
     // MARK: - Note Row
@@ -227,7 +274,7 @@ struct SidebarView: View {
     private func noteRow(_ note: Note) -> some View {
         let isSelected = selectedNoteId == note.id
         HStack(spacing: 6) {
-            Image(systemName: "doc.text")
+            Image(systemName: "doc.text.fill")
                 .font(.system(size: 11))
                 .foregroundColor(AppTheme.textSecondary)
             Text(note.title ?? "Untitled")
@@ -265,13 +312,46 @@ struct SidebarView: View {
             "#A855F7", "#FF6B6B", "#14B8A6", "#6366F1"
         ]
         let color = accentHexes[accentIndex]
-        let _ = Board(context: viewContext, name: newBoardName.trimmingCharacters(in: .whitespaces), color: color)
+        let trimmedName = newBoardName.trimmingCharacters(in: .whitespaces)
+        let board = Board(context: viewContext, name: trimmedName, color: color)
+        board.sortOrder = Int16(boards.count)
+
+        // Create default columns
+        let defaultColumns = ["To Do", "In Progress", "Done"]
+        for (index, columnName) in defaultColumns.enumerated() {
+            let col = BoardColumn(context: viewContext, name: columnName, board: board)
+            col.sortOrder = Int16(index)
+            AuditService.shared.logCreate(
+                entityType: "BoardColumn",
+                entityId: col.id!,
+                details: ["name": columnName, "board": trimmedName],
+                context: viewContext
+            )
+        }
+
+        AuditService.shared.logCreate(
+            entityType: "Board",
+            entityId: board.id!,
+            details: ["name": trimmedName, "color": color],
+            context: viewContext
+        )
+
         try? viewContext.save()
         isAddingBoard = false
         newBoardName = ""
     }
 
     private func deleteBoard(_ board: Board) {
+        let boardId = board.id ?? UUID()
+        let boardName = board.name ?? "Unknown"
+
+        AuditService.shared.logDelete(
+            entityType: "Board",
+            entityId: boardId,
+            details: ["name": boardName],
+            context: viewContext
+        )
+
         viewContext.delete(board)
         try? viewContext.save()
         if selectedBoardId == board.id {
@@ -281,8 +361,19 @@ struct SidebarView: View {
 
     private func renameBoard(_ board: Board) {
         let trimmed = renameText.trimmingCharacters(in: .whitespaces)
-        if !trimmed.isEmpty {
+        if !trimmed.isEmpty, trimmed != board.name {
+            let oldName = board.name
             board.name = trimmed
+
+            AuditService.shared.logUpdate(
+                entityType: "Board",
+                entityId: board.id!,
+                field: "name",
+                oldValue: oldName,
+                newValue: trimmed,
+                context: viewContext
+            )
+
             try? viewContext.save()
         }
         renamingBoardId = nil
@@ -294,21 +385,93 @@ struct SidebarView: View {
             isAddingFolder = false
             return
         }
-        let _ = Folder(context: viewContext, name: newFolderName.trimmingCharacters(in: .whitespaces))
+        let trimmed = newFolderName.trimmingCharacters(in: .whitespaces)
+        let folder = Folder(context: viewContext, name: trimmed)
+        AuditService.shared.logCreate(
+            entityType: "Folder",
+            entityId: folder.id ?? UUID(),
+            details: ["name": trimmed],
+            context: viewContext
+        )
         try? viewContext.save()
         isAddingFolder = false
         newFolderName = ""
     }
 
+    private func addSubfolder(to parent: Folder) {
+        guard !newSubfolderName.trimmingCharacters(in: .whitespaces).isEmpty else {
+            addingSubfolderToFolderId = nil
+            return
+        }
+        let trimmed = newSubfolderName.trimmingCharacters(in: .whitespaces)
+        let subfolder = Folder(context: viewContext, name: trimmed, parent: parent)
+        AuditService.shared.logCreate(
+            entityType: "Folder",
+            entityId: subfolder.id ?? UUID(),
+            details: [
+                "name": trimmed,
+                "parentId": parent.id?.uuidString ?? "",
+                "parentName": parent.name ?? ""
+            ],
+            context: viewContext
+        )
+        try? viewContext.save()
+        addingSubfolderToFolderId = nil
+        newSubfolderName = ""
+    }
+
     private func deleteFolder(_ folder: Folder) {
+        let folderId = folder.id ?? UUID()
+        let folderName = folder.name ?? ""
+        AuditService.shared.logDelete(
+            entityType: "Folder",
+            entityId: folderId,
+            details: ["name": folderName],
+            context: viewContext
+        )
+        deleteFolderContentsRecursively(folder)
         viewContext.delete(folder)
         try? viewContext.save()
     }
 
+    private func deleteFolderContentsRecursively(_ folder: Folder) {
+        for note in (folder.notes?.allObjects as? [Note] ?? []) {
+            if selectedNoteId == note.id {
+                selectedNoteId = nil
+            }
+            AuditService.shared.logDelete(
+                entityType: "Note",
+                entityId: note.id ?? UUID(),
+                details: ["title": note.title ?? ""],
+                context: viewContext
+            )
+            viewContext.delete(note)
+        }
+        for child in (folder.children?.allObjects as? [Folder] ?? []) {
+            AuditService.shared.logDelete(
+                entityType: "Folder",
+                entityId: child.id ?? UUID(),
+                details: ["name": child.name ?? ""],
+                context: viewContext
+            )
+            deleteFolderContentsRecursively(child)
+            viewContext.delete(child)
+        }
+    }
+
     private func renameFolder(_ folder: Folder) {
         let trimmed = renameText.trimmingCharacters(in: .whitespaces)
-        if !trimmed.isEmpty {
+        if !trimmed.isEmpty, trimmed != folder.name {
+            let oldName = folder.name
             folder.name = trimmed
+            AuditService.shared.logUpdate(
+                entityType: "Folder",
+                entityId: folder.id ?? UUID(),
+                field: "name",
+                oldValue: oldName,
+                newValue: trimmed,
+                context: viewContext
+            )
             try? viewContext.save()
         }
         renamingFolderId = nil
@@ -320,14 +483,32 @@ struct SidebarView: View {
             addingNoteToFolderId = nil
             return
         }
-        let _ = Note(context: viewContext, title: newNoteName.trimmingCharacters(in: .whitespaces), folder: folder)
+        let trimmed = newNoteName.trimmingCharacters(in: .whitespaces)
+        let note = Note(context: viewContext, title: trimmed, folder: folder)
+        AuditService.shared.logCreate(
+            entityType: "Note",
+            entityId: note.id ?? UUID(),
+            details: [
+                "title": trimmed,
+                "folderId": folder.id?.uuidString ?? "",
+                "folderName": folder.name ?? ""
+            ],
+            context: viewContext
+        )
         try? viewContext.save()
         addingNoteToFolderId = nil
         newNoteName = ""
     }
 
     private func deleteNote(_ note: Note) {
-        if selectedNoteId == note.id {
+        let noteId = note.id ?? UUID()
+        AuditService.shared.logDelete(
+            entityType: "Note",
+            entityId: noteId,
+            details: ["title": note.title ?? ""],
+            context: viewContext
+        )
+        if selectedNoteId == noteId {
             selectedNoteId = nil
         }
         viewContext.delete(note)
@@ -336,8 +517,18 @@ struct SidebarView: View {
 
     private func renameNote(_ note: Note) {
         let trimmed = renameText.trimmingCharacters(in: .whitespaces)
-        if !trimmed.isEmpty {
+        if !trimmed.isEmpty, trimmed != note.title {
+            let oldTitle = note.title
             note.title = trimmed
+            note.updatedAt = Date()
+            AuditService.shared.logUpdate(
+                entityType: "Note",
+                entityId: note.id ?? UUID(),
+                field: "title",
+                oldValue: oldTitle,
+                newValue: trimmed,
+                context: viewContext
+            )
             try? viewContext.save()
         }
         renamingNoteId = nil
