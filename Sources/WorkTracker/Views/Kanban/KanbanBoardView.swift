@@ -21,17 +21,29 @@ struct KanbanBoardView: View {
             AppTheme.background.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
-                // Board header
+                // Board header with gradient
                 boardHeader
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
                     .padding(.bottom, 12)
+                    .background(
+                        LinearGradient(
+                            colors: [accentColor.opacity(0.12), Color.clear],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .ignoresSafeArea()
+                    )
 
                 // Columns horizontal scroll
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(alignment: .top, spacing: 16) {
                         ForEach(sortedColumns, id: \.id) { column in
                             ColumnView(column: column, accentColor: accentColor)
+                                .transition(.asymmetric(
+                                    insertion: .move(edge: .trailing).combined(with: .opacity),
+                                    removal: .scale.combined(with: .opacity)
+                                ))
                         }
 
                         // Add Column button
@@ -39,6 +51,7 @@ struct KanbanBoardView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 20)
+                    .animation(.easeInOut(duration: 0.3), value: sortedColumns.map(\.id))
                 }
             }
         }

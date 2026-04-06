@@ -38,9 +38,9 @@ struct CardView: View {
                     lineWidth: isHovered ? 1.5 : 1
                 )
         )
-        .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+        .shadow(color: .black.opacity(isHovered ? 0.35 : 0.15), radius: isHovered ? 6 : 2, x: 0, y: isHovered ? 3 : 1)
         .scaleEffect(isHovered ? 1.02 : 1.0)
-        .animation(.easeInOut(duration: 0.15), value: isHovered)
+        .animation(.easeInOut(duration: 0.2), value: isHovered)
         .draggable(card.id?.uuidString ?? "") {
             // Drag preview
             Text(card.title ?? "Untitled")

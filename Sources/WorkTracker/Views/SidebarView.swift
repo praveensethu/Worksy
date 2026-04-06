@@ -154,19 +154,27 @@ struct SidebarView: View {
     @ViewBuilder
     private func boardRow(_ board: Board) -> some View {
         let isSelected = selectedBoardId == board.id
+        let boardColor = AppTheme.accentColor(for: board.color ?? "#007AFF")
         HStack(spacing: 8) {
             Circle()
-                .fill(AppTheme.accentColor(for: board.color ?? "#007AFF"))
+                .fill(boardColor)
                 .frame(width: 8, height: 8)
+                .shadow(color: isSelected ? boardColor.opacity(0.6) : .clear, radius: isSelected ? 4 : 0)
+                .scaleEffect(isSelected ? 1.2 : 1.0)
+                .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: isSelected)
             Text(board.name ?? "Untitled")
                 .font(.system(size: 13))
                 .foregroundColor(isSelected ? .white : AppTheme.textPrimary)
                 .lineLimit(1)
         }
+        .padding(.vertical, 2)
         .contentShape(Rectangle())
+        .animation(.easeInOut(duration: 0.15), value: isSelected)
         .onTapGesture {
-            selectedBoardId = board.id
-            selectedNoteId = nil
+            withAnimation(.easeInOut(duration: 0.15)) {
+                selectedBoardId = board.id
+                selectedNoteId = nil
+            }
         }
         .contextMenu {
             Button("Rename") {
@@ -283,9 +291,12 @@ struct SidebarView: View {
                 .lineLimit(1)
         }
         .contentShape(Rectangle())
+        .animation(.easeInOut(duration: 0.15), value: isSelected)
         .onTapGesture {
-            selectedNoteId = note.id
-            selectedBoardId = nil
+            withAnimation(.easeInOut(duration: 0.15)) {
+                selectedNoteId = note.id
+                selectedBoardId = nil
+            }
         }
         .contextMenu {
             Button("Rename") {

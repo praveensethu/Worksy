@@ -67,6 +67,7 @@ struct ColumnView: View {
         )
         .animation(.easeInOut(duration: 0.15), value: isDropTargeted)
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .shadow(color: .black.opacity(0.25), radius: 8, x: 0, y: 4)
         .alert("Delete Column", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
@@ -105,6 +106,8 @@ struct ColumnView: View {
                 .padding(.vertical, 2)
                 .background(AppTheme.surface.opacity(0.8))
                 .clipShape(Capsule())
+                .contentTransition(.numericText())
+                .animation(.easeInOut(duration: 0.2), value: sortedCards.count)
 
             Button(action: { addCard() }) {
                 Image(systemName: "plus")
