@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import CoreData
 
 struct KanbanBoardView: View {
@@ -6,6 +7,7 @@ struct KanbanBoardView: View {
     @ObservedObject var board: Board
 
     @State private var showDeleteColumnConfirmation = false
+    @State private var showBackgroundPicker = false
 
     private var accentColor: Color {
         AppTheme.accentColor(for: board.color ?? "#007AFF")
@@ -18,7 +20,8 @@ struct KanbanBoardView: View {
 
     var body: some View {
         ZStack {
-            AppTheme.background.ignoresSafeArea()
+            // Background: image or solid color
+            backgroundLayer
 
             VStack(alignment: .leading, spacing: 0) {
                 // Board header with gradient
@@ -57,6 +60,41 @@ struct KanbanBoardView: View {
         }
     }
 
+    // MARK: - Background Layer
+
+    @ViewBuilder
+    private var backgroundLayer: some View {
+        if let bgImage = board.backgroundImage, !bgImage.isEmpty, let nsImage = loadBackgroundImage(bgImage) {
+            ZStack {
+                Image(nsImage: nsImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .ignoresSafeArea()
+
+                // Dark overlay for readability
+                Color.black.opacity(0.45)
+                    .ignoresSafeArea()
+            }
+        } else {
+            AppTheme.background.ignoresSafeArea()
+        }
+    }
+
+    private func loadBackgroundImage(_ identifier: String) -> NSImage? {
+        // Check if it's a bundled image (just a filename like "mountain.jpg")
+        if !identifier.contains("/") {
+            let name = identifier.replacingOccurrences(of: ".jpg", with: "")
+                .replacingOccurrences(of: ".png", with: "")
+                .replacingOccurrences(of: ".jpeg", with: "")
+            let ext = (identifier as NSString).pathExtension
+            if let url = Bundle.module.url(forResource: name, withExtension: ext.isEmpty ? "jpg" : ext, subdirectory: "Backgrounds") {
+                return NSImage(contentsOf: url)
+            }
+        }
+        // Otherwise treat as a full file path (custom image)
+        return NSImage(contentsOfFile: identifier)
+    }
+
     // MARK: - Board Header
 
     @ViewBuilder
@@ -75,6 +113,17 @@ struct KanbanBoardView: View {
                 .foregroundColor(AppTheme.textMuted)
 
             Spacer()
+
+            Button(action: { showBackgroundPicker.toggle() }) {
+                Image(systemName: "photo.on.rectangle")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(AppTheme.textSecondary)
+            }
+            .buttonStyle(.plain)
+            .popover(isPresented: $showBackgroundPicker, arrowEdge: .bottom) {
+                BackgroundPickerView(board: board)
+                    .environment(\.managedObjectContext, viewContext)
+            }
         }
     }
 

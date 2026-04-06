@@ -56,7 +56,12 @@ enum CoreDataModel {
         boardCreatedAt.name = "createdAt"
         boardCreatedAt.attributeType = .dateAttributeType
 
-        boardEntity.properties = [boardId, boardName, boardColor, boardSortOrder, boardCreatedAt]
+        let boardBackgroundImage = NSAttributeDescription()
+        boardBackgroundImage.name = "backgroundImage"
+        boardBackgroundImage.attributeType = .stringAttributeType
+        boardBackgroundImage.isOptional = true
+
+        boardEntity.properties = [boardId, boardName, boardColor, boardSortOrder, boardCreatedAt, boardBackgroundImage]
 
         // MARK: - BoardColumn Attributes
 

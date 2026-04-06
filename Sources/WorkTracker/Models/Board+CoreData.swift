@@ -7,6 +7,7 @@ public class Board: NSManagedObject {
     @NSManaged public var color: String?
     @NSManaged public var sortOrder: Int16
     @NSManaged public var createdAt: Date?
+    @NSManaged public var backgroundImage: String?
     @NSManaged public var columns: NSSet?
 
     convenience init(context: NSManagedObjectContext, name: String, color: String = "#007AFF") {

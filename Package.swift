@@ -10,7 +10,8 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "WorkTracker",
-            path: "Sources/WorkTracker"
+            path: "Sources/WorkTracker",
+            resources: [.copy("Resources/Backgrounds")]
         )
     ]
 )

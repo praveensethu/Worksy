@@ -1,11 +1,11 @@
 import SwiftUI
 
 enum AppTheme {
-    // Backgrounds
-    static let background = Color(hex: "#1A1A2E")
-    static let surface = Color(hex: "#16213E")
-    static let card = Color(hex: "#1E2A47")
-    static let sidebar = Color(hex: "#0F0F23")
+    // Backgrounds — warm charcoal dark theme (not navy/blue)
+    static let background = Color(hex: "#1C1C1E")
+    static let surface = Color(hex: "#2C2C2E")
+    static let card = Color(hex: "#333336")
+    static let sidebar = Color(hex: "#161618")
 
     // Text
     static let textPrimary = Color(hex: "#E8E8E8")
