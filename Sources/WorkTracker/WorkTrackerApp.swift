@@ -5,7 +5,7 @@ struct WorkTrackerApp: App {
     let persistence = PersistenceController.shared
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup("WorkTracker") {
             ContentView()
                 .environment(\.managedObjectContext, persistence.container.viewContext)
         }
