@@ -12,7 +12,7 @@ struct WelcomeView: View {
             RadialGradient(
                 colors: [
                     AppTheme.accents[0].opacity(0.08),
-                    AppTheme.accents[4].opacity(0.05),
+                    AppTheme.accents[2].opacity(0.05),
                     Color.clear
                 ],
                 center: animateGradient ? .topLeading : .bottomTrailing,
@@ -34,13 +34,13 @@ struct WelcomeView: View {
 
                     HStack(spacing: 6) {
                         RoundedRectangle(cornerRadius: 4)
-                            .fill(AppTheme.accents[0])
+                            .fill(Color(hex: "#FFB800"))  // Amber
                             .frame(width: 22, height: 50)
                         RoundedRectangle(cornerRadius: 4)
-                            .fill(AppTheme.accents[1])
+                            .fill(Color(hex: "#FF6B6B"))  // Coral
                             .frame(width: 22, height: 40)
                         RoundedRectangle(cornerRadius: 4)
-                            .fill(AppTheme.accents[2])
+                            .fill(Color(hex: "#00D68F"))  // Emerald
                             .frame(width: 22, height: 30)
                     }
                 }
@@ -49,7 +49,7 @@ struct WelcomeView: View {
                     .font(.system(size: 40, weight: .bold, design: .rounded))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [AppTheme.accents[0], AppTheme.accents[4]],
+                            colors: [Color(hex: "#FFB800"), Color(hex: "#FF6B6B")],
                             startPoint: .leading,
                             endPoint: .trailing
                         )

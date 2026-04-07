@@ -11,10 +11,16 @@ struct ColumnView: View {
     @State private var renameText = ""
     @State private var showDeleteConfirmation = false
     @State private var isDropTargeted = false
+    @State private var showWipSettings = false
+    @State private var wipLimitText = ""
 
     private var sortedCards: [Card] {
-        (column.cards?.allObjects as? [Card] ?? [])
-            .sorted { $0.sortOrder < $1.sortOrder }
+        column.activeCards
+            .sorted {
+                // Pinned cards first, then by sortOrder
+                if $0.isPinned != $1.isPinned { return $0.isPinned }
+                return $0.sortOrder < $1.sortOrder
+            }
     }
 
     var body: some View {
@@ -23,10 +29,8 @@ struct ColumnView: View {
             accentColor
                 .frame(height: 3)
                 .clipShape(UnevenRoundedRectangle(
-                    topLeadingRadius: 8,
-                    bottomLeadingRadius: 0,
-                    bottomTrailingRadius: 0,
-                    topTrailingRadius: 8
+                    topLeadingRadius: 8, bottomLeadingRadius: 0,
+                    bottomTrailingRadius: 0, topTrailingRadius: 8
                 ))
 
             // Column header
@@ -35,8 +39,7 @@ struct ColumnView: View {
                 .padding(.top, 10)
                 .padding(.bottom, 8)
 
-            Divider()
-                .background(AppTheme.textMuted.opacity(0.3))
+            Divider().background(AppTheme.textMuted.opacity(0.3))
 
             // Cards list
             ScrollView(.vertical, showsIndicators: false) {
@@ -57,7 +60,7 @@ struct ColumnView: View {
             }
         }
         .frame(width: 280)
-        .background(isDropTargeted ? accentColor.opacity(0.08) : AppTheme.card.opacity(0.92))
+        .background(isDropTargeted ? accentColor.opacity(0.08) : AppTheme.card.opacity(0.6))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .strokeBorder(
@@ -68,13 +71,37 @@ struct ColumnView: View {
         .animation(.easeInOut(duration: 0.15), value: isDropTargeted)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .shadow(color: .black.opacity(0.25), radius: 8, x: 0, y: 4)
+        .draggable(column.id?.uuidString ?? "col:") {
+            Text(column.name ?? "Column")
+                .font(.system(size: 13, weight: .semibold))
+                .padding(10)
+                .frame(width: 200)
+                .background(AppTheme.card)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .shadow(color: .black.opacity(0.3), radius: 4)
+        }
         .alert("Delete Column", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) {
-                deleteColumn()
-            }
+            Button("Delete", role: .destructive) { deleteColumn() }
         } message: {
             Text("Are you sure you want to delete \"\(column.name ?? "this column")\"? All cards in this column will also be deleted.")
+        }
+        .popover(isPresented: $showWipSettings, arrowEdge: .bottom) {
+            VStack(spacing: 8) {
+                Text("WIP Limit")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(AppTheme.textPrimary)
+                TextField("0 = no limit", text: $wipLimitText)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 100)
+                    .onSubmit {
+                        column.wipLimit = Int16(wipLimitText) ?? 0
+                        try? viewContext.save()
+                        showWipSettings = false
+                    }
+            }
+            .padding(12)
+            .background(AppTheme.background)
         }
     }
 
@@ -84,12 +111,10 @@ struct ColumnView: View {
     private var columnHeader: some View {
         HStack {
             if isRenaming {
-                TextField("Column name", text: $renameText, onCommit: {
-                    commitRename()
-                })
-                .textFieldStyle(.plain)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(AppTheme.textPrimary)
+                TextField("Column name", text: $renameText, onCommit: { commitRename() })
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(AppTheme.textPrimary)
             } else {
                 Text(column.name ?? "Untitled")
                     .font(.system(size: 13, weight: .semibold))
@@ -98,6 +123,17 @@ struct ColumnView: View {
             }
 
             Spacer()
+
+            // WIP limit indicator
+            if column.wipLimit > 0 {
+                Text("\(sortedCards.count)/\(column.wipLimit)")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(column.isOverWipLimit ? .white : AppTheme.textMuted)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(column.isOverWipLimit ? Color(hex: "#FF3B30") : AppTheme.surface.opacity(0.8))
+                    .clipShape(Capsule())
+            }
 
             Text("\(sortedCards.count)")
                 .font(.system(size: 11, weight: .medium))
@@ -121,48 +157,39 @@ struct ColumnView: View {
                 renameText = column.name ?? ""
                 isRenaming = true
             }
-            Divider()
-            Button("Delete", role: .destructive) {
-                showDeleteConfirmation = true
+            Button("Set WIP Limit") {
+                wipLimitText = column.wipLimit > 0 ? "\(column.wipLimit)" : ""
+                showWipSettings = true
             }
+            Divider()
+            Button("Delete", role: .destructive) { showDeleteConfirmation = true }
         }
     }
-
 
     // MARK: - Drag & Drop
 
     private func handleCardDrop(cardIdString: String, atIndex index: Int) -> Bool {
         guard let cardUUID = UUID(uuidString: cardIdString) else { return false }
-
         let request = NSFetchRequest<Card>(entityName: "Card")
         request.predicate = NSPredicate(format: "id == %@", cardUUID as CVarArg)
         request.fetchLimit = 1
-
         guard let card = try? viewContext.fetch(request).first else { return false }
 
         let oldColumn = card.column
         let oldColumnName = oldColumn?.name ?? "Unknown"
         let newColumnName = column.name ?? "Unknown"
 
-        // Move card to this column
         card.column = column
 
-        // Recalculate sort orders for all cards in target column
         var cards = sortedCards.filter { $0.id != card.id }
         let insertAt = min(index, cards.count)
         cards.insert(card, at: insertAt)
-        for (i, c) in cards.enumerated() {
-            c.sortOrder = Int16(i)
-        }
+        for (i, c) in cards.enumerated() { c.sortOrder = Int16(i) }
 
-        // Log cross-column moves via AuditService
         if oldColumn?.id != column.id {
             AuditService.shared.logMove(
-                entityType: "Card",
-                entityId: cardUUID,
-                fromColumn: oldColumnName,
-                toColumn: newColumnName,
-                context: viewContext
+                entityType: "Card", entityId: cardUUID,
+                fromColumn: oldColumnName, toColumn: newColumnName, context: viewContext
             )
         }
 
@@ -170,22 +197,17 @@ struct ColumnView: View {
         return true
     }
 
-    // MARK: - CRUD Operations
+    // MARK: - CRUD
 
     private func addCard() {
         let existingCards = sortedCards
         let nextOrder = (existingCards.last.map { Int($0.sortOrder) } ?? -1) + 1
-
         let card = Card(context: viewContext, title: "New Card", column: column)
         card.sortOrder = Int16(nextOrder)
-
         AuditService.shared.logCreate(
-            entityType: "Card",
-            entityId: card.id!,
-            details: ["title": "New Card", "column": column.name ?? "Unknown"],
-            context: viewContext
+            entityType: "Card", entityId: card.id!,
+            details: ["title": "New Card", "column": column.name ?? "Unknown"], context: viewContext
         )
-
         try? viewContext.save()
     }
 
@@ -194,45 +216,30 @@ struct ColumnView: View {
         if !trimmed.isEmpty, trimmed != column.name {
             let oldName = column.name
             column.name = trimmed
-
             AuditService.shared.logUpdate(
-                entityType: "BoardColumn",
-                entityId: column.id!,
-                field: "name",
-                oldValue: oldName,
-                newValue: trimmed,
-                context: viewContext
+                entityType: "BoardColumn", entityId: column.id!,
+                field: "name", oldValue: oldName, newValue: trimmed, context: viewContext
             )
-
             try? viewContext.save()
         }
-        isRenaming = false
-        renameText = ""
+        isRenaming = false; renameText = ""
     }
 
     private func deleteColumn() {
         let columnId = column.id ?? UUID()
         let columnName = column.name ?? "Unknown"
-
-        // Delete all cards in this column
         let cards = column.cards?.allObjects as? [Card] ?? []
         for card in cards {
             AuditService.shared.logDelete(
-                entityType: "Card",
-                entityId: card.id ?? UUID(),
-                details: ["title": card.title ?? "Unknown", "reason": "column_deleted"],
-                context: viewContext
+                entityType: "Card", entityId: card.id ?? UUID(),
+                details: ["title": card.title ?? "Unknown", "reason": "column_deleted"], context: viewContext
             )
             viewContext.delete(card)
         }
-
         AuditService.shared.logDelete(
-            entityType: "BoardColumn",
-            entityId: columnId,
-            details: ["name": columnName, "cardsDeleted": cards.count],
-            context: viewContext
+            entityType: "BoardColumn", entityId: columnId,
+            details: ["name": columnName, "cardsDeleted": cards.count], context: viewContext
         )
-
         viewContext.delete(column)
         try? viewContext.save()
     }

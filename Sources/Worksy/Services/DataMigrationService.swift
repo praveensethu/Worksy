@@ -76,6 +76,36 @@ enum DataMigrationService {
         return count == 0
     }
 
+    /// Re-import just the notes (e.g. after accidental deletion).
+    /// Only runs if there are zero notes in the database.
+    static func reimportNotesIfNeeded(context: NSManagedObjectContext) {
+        let request = NSFetchRequest<NSFetchRequestResult>(entityName: "Note")
+        request.fetchLimit = 1
+        let noteCount = (try? context.count(for: request)) ?? 0
+        guard noteCount == 0 else { return }
+
+        guard FileManager.default.fileExists(atPath: sublimeFilePath),
+              let fileContents = try? String(contentsOfFile: sublimeFilePath, encoding: .utf8) else {
+            return
+        }
+
+        // Delete any orphaned empty folders first
+        let folderRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Folder")
+        if let folders = try? context.fetch(folderRequest) as? [Folder] {
+            for folder in folders { context.delete(folder) }
+        }
+
+        let sections = parseSections(from: fileContents)
+        createNotebooks(from: sections, context: context)
+
+        do {
+            try context.save()
+            print("[DataMigrationService] Successfully re-imported notes from Sublime Notes.")
+        } catch {
+            print("[DataMigrationService] Failed to re-import notes: \(error)")
+        }
+    }
+
     // MARK: - Parser
 
     /// Each parsed section has a header (uppercased) and its raw content lines (excluding the header line itself).

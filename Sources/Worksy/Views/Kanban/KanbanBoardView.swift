@@ -8,10 +8,12 @@ struct KanbanBoardView: View {
 
     @State private var showDeleteColumnConfirmation = false
     @State private var showBackgroundPicker = false
+    @State private var showStats = false
+    @State private var showArchive = false
     @State private var cachedBackgroundImage: NSImage?
 
     private var accentColor: Color {
-        AppTheme.accentColor(for: board.color ?? "#007AFF")
+        AppTheme.accentColor(for: board.color ?? "#FFB800")
     }
 
     private var sortedColumns: [BoardColumn] {
@@ -32,11 +34,10 @@ struct KanbanBoardView: View {
                     .padding(.bottom, 12)
                     .background(
                         LinearGradient(
-                            colors: [accentColor.opacity(0.12), Color.clear],
+                            colors: [accentColor.opacity(0.08), Color.clear],
                             startPoint: .top,
                             endPoint: .bottom
                         )
-                        .ignoresSafeArea()
                     )
 
                 // Columns horizontal scroll
@@ -44,13 +45,13 @@ struct KanbanBoardView: View {
                     HStack(alignment: .top, spacing: 16) {
                         ForEach(sortedColumns, id: \.id) { column in
                             ColumnView(column: column, accentColor: accentColor)
-                                .transition(.asymmetric(
-                                    insertion: .move(edge: .trailing).combined(with: .opacity),
-                                    removal: .scale.combined(with: .opacity)
-                                ))
+                                .dropDestination(for: String.self) { items, _ in
+                                    guard let id = items.first, id.count == 36,
+                                          let draggedId = UUID(uuidString: id) else { return false }
+                                    return handleColumnReorder(draggedColumnId: draggedId, targetColumn: column)
+                                } isTargeted: { _ in }
                         }
 
-                        // Add Column button
                         addColumnButton
                     }
                     .padding(.horizontal, 20)
@@ -59,6 +60,7 @@ struct KanbanBoardView: View {
                 }
             }
         }
+        .clipped()
         .onAppear { loadBackgroundAsync() }
         .onChange(of: board.backgroundImage) { _ in loadBackgroundAsync() }
     }
@@ -69,17 +71,19 @@ struct KanbanBoardView: View {
     private var backgroundLayer: some View {
         if let nsImage = cachedBackgroundImage {
             ZStack {
-                Image(nsImage: nsImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .ignoresSafeArea()
+                GeometryReader { geo in
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .clipped()
+                }
 
-                // Dark overlay for readability — text and cards must be readable
-                Color.black.opacity(0.55)
-                    .ignoresSafeArea()
+                // Light overlay for readability
+                Color.black.opacity(0.3)
             }
         } else {
-            AppTheme.background.ignoresSafeArea()
+            AppTheme.background
         }
     }
 
@@ -88,6 +92,14 @@ struct KanbanBoardView: View {
             cachedBackgroundImage = nil
             return
         }
+
+        // Bundled images are small — load synchronously to avoid flash
+        if !identifier.contains("/") {
+            cachedBackgroundImage = loadBackgroundImage(identifier)
+            return
+        }
+
+        // Custom user images — load async
         DispatchQueue.global(qos: .userInitiated).async {
             let image = loadBackgroundImage(identifier)
             DispatchQueue.main.async {
@@ -102,7 +114,21 @@ struct KanbanBoardView: View {
                 .replacingOccurrences(of: ".png", with: "")
                 .replacingOccurrences(of: ".jpeg", with: "")
             let ext = (identifier as NSString).pathExtension
+
+            // Try Bundle.module first (Swift Package resources)
             if let url = Bundle.module.url(forResource: name, withExtension: ext.isEmpty ? "jpg" : ext, subdirectory: "Backgrounds") {
+                return NSImage(contentsOf: url)
+            }
+
+            // Fallback: search in main bundle
+            if let url = Bundle.main.url(forResource: name, withExtension: ext.isEmpty ? "jpg" : ext, subdirectory: "Backgrounds") {
+                return NSImage(contentsOf: url)
+            }
+
+            // Fallback: search resource bundle by name
+            if let bundleURL = Bundle.main.url(forResource: "WorkTracker_WorkTracker", withExtension: "bundle"),
+               let resBundle = Bundle(url: bundleURL),
+               let url = resBundle.url(forResource: name, withExtension: ext.isEmpty ? "jpg" : ext, subdirectory: "Backgrounds") {
                 return NSImage(contentsOf: url)
             }
         }
@@ -130,7 +156,50 @@ struct KanbanBoardView: View {
 
             Spacer()
 
-            // Shuffle background button
+            // Export
+            Menu {
+                Button("Export as Markdown") {
+                    let md = ExportService.exportAsMarkdown(board: board)
+                    ExportService.saveToFile(content: md, defaultName: "\(board.name ?? "board").md", fileType: "md")
+                }
+                Button("Export as CSV") {
+                    let csv = ExportService.exportAsCSV(board: board)
+                    ExportService.saveToFile(content: csv, defaultName: "\(board.name ?? "board").csv", fileType: "csv")
+                }
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(AppTheme.textSecondary)
+            }
+            .buttonStyle(.plain)
+            .help("Export board")
+
+            // Stats
+            Button(action: { showStats.toggle() }) {
+                Image(systemName: "chart.bar.fill")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(AppTheme.textSecondary)
+            }
+            .buttonStyle(.plain)
+            .help("Board stats")
+            .popover(isPresented: $showStats, arrowEdge: .bottom) {
+                BoardStatsView(board: board)
+            }
+
+            // Archive
+            Button(action: { showArchive.toggle() }) {
+                Image(systemName: "archivebox.fill")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(AppTheme.textSecondary)
+            }
+            .buttonStyle(.plain)
+            .help("Archived cards")
+            .popover(isPresented: $showArchive, arrowEdge: .bottom) {
+                ArchiveView(board: board)
+                    .environment(\.managedObjectContext, viewContext)
+            }
+
+            // Shuffle background
             Button(action: { shuffleBackground() }) {
                 Image(systemName: "shuffle")
                     .font(.system(size: 14, weight: .medium))
@@ -139,7 +208,7 @@ struct KanbanBoardView: View {
             .buttonStyle(.plain)
             .help("Random background")
 
-            // Background picker button
+            // Background picker
             Button(action: { showBackgroundPicker.toggle() }) {
                 Image(systemName: "photo.on.rectangle")
                     .font(.system(size: 14, weight: .medium))
@@ -203,5 +272,24 @@ struct KanbanBoardView: View {
         )
 
         try? viewContext.save()
+    }
+
+    private func handleColumnReorder(draggedColumnId: UUID, targetColumn: BoardColumn) -> Bool {
+        guard draggedColumnId != targetColumn.id else { return false }
+        let request = NSFetchRequest<BoardColumn>(entityName: "BoardColumn")
+        request.predicate = NSPredicate(format: "id == %@ AND board == %@", draggedColumnId as CVarArg, board)
+        request.fetchLimit = 1
+        guard let draggedCol = try? viewContext.fetch(request).first else { return false }
+
+        var cols = sortedColumns
+        cols.removeAll { $0.id == draggedCol.id }
+        if let targetIdx = cols.firstIndex(where: { $0.id == targetColumn.id }) {
+            cols.insert(draggedCol, at: targetIdx)
+        } else {
+            cols.append(draggedCol)
+        }
+        for (i, c) in cols.enumerated() { c.sortOrder = Int16(i) }
+        try? viewContext.save()
+        return true
     }
 }

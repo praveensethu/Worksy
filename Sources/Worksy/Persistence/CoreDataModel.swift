@@ -45,7 +45,7 @@ enum CoreDataModel {
         let boardColor = NSAttributeDescription()
         boardColor.name = "color"
         boardColor.attributeType = .stringAttributeType
-        boardColor.defaultValue = "#007AFF"
+        boardColor.defaultValue = "#FFB800"
 
         let boardSortOrder = NSAttributeDescription()
         boardSortOrder.name = "sortOrder"
@@ -79,7 +79,12 @@ enum CoreDataModel {
         columnSortOrder.attributeType = .integer16AttributeType
         columnSortOrder.defaultValue = Int16(0)
 
-        boardColumnEntity.properties = [columnId, columnName, columnSortOrder]
+        let columnWipLimit = NSAttributeDescription()
+        columnWipLimit.name = "wipLimit"
+        columnWipLimit.attributeType = .integer16AttributeType
+        columnWipLimit.defaultValue = Int16(0)  // 0 means no limit
+
+        boardColumnEntity.properties = [columnId, columnName, columnSortOrder, columnWipLimit]
 
         // MARK: - Card Attributes
 
@@ -106,7 +111,27 @@ enum CoreDataModel {
         cardCreatedAt.name = "createdAt"
         cardCreatedAt.attributeType = .dateAttributeType
 
-        cardEntity.properties = [cardId, cardTitle, cardDescription, cardSortOrder, cardCreatedAt]
+        let cardDueDate = NSAttributeDescription()
+        cardDueDate.name = "dueDate"
+        cardDueDate.attributeType = .dateAttributeType
+        cardDueDate.isOptional = true
+
+        let cardIsArchived = NSAttributeDescription()
+        cardIsArchived.name = "isArchived"
+        cardIsArchived.attributeType = .booleanAttributeType
+        cardIsArchived.defaultValue = false
+
+        let cardIsPinned = NSAttributeDescription()
+        cardIsPinned.name = "isPinned"
+        cardIsPinned.attributeType = .booleanAttributeType
+        cardIsPinned.defaultValue = false
+
+        let cardLabels = NSAttributeDescription()
+        cardLabels.name = "labels"
+        cardLabels.attributeType = .stringAttributeType
+        cardLabels.isOptional = true
+
+        cardEntity.properties = [cardId, cardTitle, cardDescription, cardSortOrder, cardCreatedAt, cardDueDate, cardIsArchived, cardIsPinned, cardLabels]
 
         // MARK: - Folder Attributes
 

@@ -10,7 +10,7 @@ public class Board: NSManagedObject {
     @NSManaged public var backgroundImage: String?
     @NSManaged public var columns: NSSet?
 
-    convenience init(context: NSManagedObjectContext, name: String, color: String = "#007AFF") {
+    convenience init(context: NSManagedObjectContext, name: String, color: String = "#FFB800") {
         let entity = NSEntityDescription.entity(forEntityName: "Board", in: context)!
         self.init(entity: entity, insertInto: context)
         self.id = UUID()

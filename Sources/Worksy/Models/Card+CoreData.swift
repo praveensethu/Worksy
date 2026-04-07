@@ -7,6 +7,10 @@ public class Card: NSManagedObject {
     @NSManaged public var cardDescription: String?
     @NSManaged public var sortOrder: Int16
     @NSManaged public var createdAt: Date?
+    @NSManaged public var dueDate: Date?
+    @NSManaged public var isArchived: Bool
+    @NSManaged public var isPinned: Bool
+    @NSManaged public var labels: String?
     @NSManaged public var column: BoardColumn?
 
     convenience init(context: NSManagedObjectContext, title: String, column: BoardColumn? = nil) {
@@ -16,6 +20,18 @@ public class Card: NSManagedObject {
         self.title = title
         self.sortOrder = 0
         self.createdAt = Date()
+        self.isArchived = false
+        self.isPinned = false
         self.column = column
+    }
+
+    var labelArray: [String] {
+        get { labels?.split(separator: ",").map(String.init) ?? [] }
+        set { labels = newValue.isEmpty ? nil : newValue.joined(separator: ",") }
+    }
+
+    var isOverdue: Bool {
+        guard let due = dueDate else { return false }
+        return due < Date() && !isArchived
     }
 }

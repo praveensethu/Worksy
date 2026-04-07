@@ -34,6 +34,8 @@ struct SidebarView: View {
     @State private var newSubfolderName = ""
     @State private var folderToDelete: Folder?
     @State private var showDeleteFolderAlert = false
+    @State private var noteToDelete: Note?
+    @State private var showDeleteNoteAlert = false
 
     init(selectedBoardId: Binding<UUID?>, selectedNoteId: Binding<UUID?>) {
         _selectedBoardId = selectedBoardId
@@ -140,12 +142,23 @@ struct SidebarView: View {
             Button("Cancel", role: .cancel) {
                 folderToDelete = nil
             }
-            Button("Delete", role: .destructive) {
+            Button("Delete Folder", role: .destructive) {
                 deleteFolder(folder)
                 folderToDelete = nil
             }
         } message: { folder in
             Text("This will permanently delete \"\(folder.name ?? "Untitled")\" and all its subfolders and notes.")
+        }
+        .alert("Delete Note?", isPresented: $showDeleteNoteAlert, presenting: noteToDelete) { note in
+            Button("Cancel", role: .cancel) {
+                noteToDelete = nil
+            }
+            Button("Delete Note", role: .destructive) {
+                deleteNote(note)
+                noteToDelete = nil
+            }
+        } message: { note in
+            Text("This will permanently delete the note \"\(note.title ?? "Untitled")\".")
         }
     }
 
@@ -154,7 +167,7 @@ struct SidebarView: View {
     @ViewBuilder
     private func boardRow(_ board: Board) -> some View {
         let isSelected = selectedBoardId == board.id
-        let boardColor = AppTheme.accentColor(for: board.color ?? "#007AFF")
+        let boardColor = AppTheme.accentColor(for: board.color ?? "#FFB800")
         HStack(spacing: 8) {
             Circle()
                 .fill(boardColor)
@@ -251,25 +264,25 @@ struct SidebarView: View {
                         .foregroundColor(AppTheme.textPrimary)
                         .lineLimit(1)
                 }
-            }
-            .contextMenu {
-                Button("Add Subfolder") {
-                    newSubfolderName = ""
-                    addingSubfolderToFolderId = folder.id
-                }
-                Button("Add Note") {
-                    newNoteName = ""
-                    addingNoteToFolderId = folder.id
-                }
-                Divider()
-                Button("Rename") {
-                    renameText = folder.name ?? ""
-                    renamingFolderId = folder.id
-                }
-                Divider()
-                Button("Delete", role: .destructive) {
-                    folderToDelete = folder
-                    showDeleteFolderAlert = true
+                .contextMenu {
+                    Button("Add Subfolder") {
+                        newSubfolderName = ""
+                        addingSubfolderToFolderId = folder.id
+                    }
+                    Button("Add Note") {
+                        newNoteName = ""
+                        addingNoteToFolderId = folder.id
+                    }
+                    Divider()
+                    Button("Rename Folder") {
+                        renameText = folder.name ?? ""
+                        renamingFolderId = folder.id
+                    }
+                    Divider()
+                    Button("Delete Folder & All Notes", role: .destructive) {
+                        folderToDelete = folder
+                        showDeleteFolderAlert = true
+                    }
                 }
             }
         )
@@ -298,13 +311,14 @@ struct SidebarView: View {
             }
         }
         .contextMenu {
-            Button("Rename") {
+            Button("Rename Note") {
                 renameText = note.title ?? ""
                 renamingNoteId = note.id
             }
             Divider()
-            Button("Delete", role: .destructive) {
-                deleteNote(note)
+            Button("Delete Note", role: .destructive) {
+                noteToDelete = note
+                showDeleteNoteAlert = true
             }
         }
     }
@@ -318,8 +332,8 @@ struct SidebarView: View {
         }
         let accentIndex = boards.count % AppTheme.accents.count
         let accentHexes = [
-            "#0F9BF7", "#FF2D78", "#00D68F", "#FFB800",
-            "#A855F7", "#FF6B6B", "#14B8A6", "#6366F1"
+            "#FFB800", "#FF6B6B", "#00D68F", "#FF2D78",
+            "#A855F7", "#14B8A6", "#0F9BF7", "#6366F1"
         ]
         let color = accentHexes[accentIndex]
         let trimmedName = newBoardName.trimmingCharacters(in: .whitespaces)

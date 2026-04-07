@@ -20,6 +20,8 @@ final class PersistenceController {
         } else {
             let storeURL = PersistenceController.storeURL()
             let description = NSPersistentStoreDescription(url: storeURL)
+            description.setOption(true as NSNumber, forKey: NSMigratePersistentStoresAutomaticallyOption)
+            description.setOption(true as NSNumber, forKey: NSInferMappingModelAutomaticallyOption)
             container.persistentStoreDescriptions = [description]
         }
 

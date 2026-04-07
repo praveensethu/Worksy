@@ -14,13 +14,13 @@ enum AppTheme {
 
     // Board accent colors (assigned to boards)
     static let accents: [Color] = [
-        Color(hex: "#0F9BF7"),  // Electric Blue
-        Color(hex: "#FF2D78"),  // Hot Pink
-        Color(hex: "#00D68F"),  // Emerald
         Color(hex: "#FFB800"),  // Amber
-        Color(hex: "#A855F7"),  // Violet
         Color(hex: "#FF6B6B"),  // Coral
+        Color(hex: "#00D68F"),  // Emerald
+        Color(hex: "#FF2D78"),  // Hot Pink
+        Color(hex: "#A855F7"),  // Violet
         Color(hex: "#14B8A6"),  // Teal
+        Color(hex: "#0F9BF7"),  // Electric Blue
         Color(hex: "#6366F1"),  // Indigo
     ]
 

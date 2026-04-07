@@ -6,9 +6,29 @@ struct BackgroundPickerView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @ObservedObject var board: Board
 
+    @State private var imageURL = ""
+    @State private var isDownloading = false
+    @State private var downloadError = ""
+
     static let bundledImages = [
         "mountain.jpg", "forest.jpg", "ocean.jpg", "aurora.jpg",
         "sunset.jpg", "lake.jpg", "stars.jpg", "waterfall.jpg"
+    ]
+
+    // Curated free Unsplash images (direct download links, free to use)
+    private static let onlineImages: [(name: String, url: String)] = [
+        ("Cherry Blossoms", "https://images.unsplash.com/photo-1522383225653-ed111181a951?w=1920&q=80"),
+        ("Northern Lights", "https://images.unsplash.com/photo-1483347756197-71ef80e95f73?w=1920&q=80"),
+        ("Tropical Beach", "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80"),
+        ("Snow Mountains", "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1920&q=80"),
+        ("City Skyline", "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&q=80"),
+        ("Autumn Forest", "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1920&q=80"),
+        ("Desert Dunes", "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=1920&q=80"),
+        ("Galaxy", "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1920&q=80"),
+        ("Lavender Field", "https://images.unsplash.com/photo-1499002238440-d264edd596ec?w=1920&q=80"),
+        ("Rainforest", "https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&q=80"),
+        ("Volcano", "https://images.unsplash.com/photo-1462651567147-aa679fd1cfaf?w=1920&q=80"),
+        ("Coral Reef", "https://images.unsplash.com/photo-1546026423-cc4642628d2b?w=1920&q=80"),
     ]
 
     private let columns = [GridItem(.adaptive(minimum: 100, maximum: 120), spacing: 10)]
@@ -67,10 +87,57 @@ struct BackgroundPickerView: View {
                     // Add Custom button
                     addCustomButton
                 }
+
+                // Online images section
+                Text("FROM INTERNET")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(AppTheme.textMuted)
+                    .tracking(1)
+                    .padding(.top, 8)
+
+                LazyVGrid(columns: columns, spacing: 10) {
+                    ForEach(Self.onlineImages, id: \.url) { img in
+                        onlineImageThumbnail(img.name, url: img.url)
+                    }
+                }
+
+                // Custom URL input
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("PASTE IMAGE URL")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(AppTheme.textMuted)
+                        .tracking(1)
+                        .padding(.top, 8)
+
+                    HStack(spacing: 8) {
+                        TextField("https://...", text: $imageURL)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(size: 12))
+
+                        Button(action: { downloadFromURL() }) {
+                            if isDownloading {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Text("Download")
+                                    .font(.system(size: 11, weight: .medium))
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundColor(Color(hex: "#00D68F"))
+                        .disabled(imageURL.isEmpty || isDownloading)
+                    }
+
+                    if !downloadError.isEmpty {
+                        Text(downloadError)
+                            .font(.system(size: 10))
+                            .foregroundColor(Color(hex: "#FF3B30"))
+                    }
+                }
             }
         }
         .padding(16)
-        .frame(width: 380, height: 400)
+        .frame(width: 400, height: 550)
         .background(AppTheme.background)
         .onAppear {
             if UserDefaults.standard.bool(forKey: "dailyRotate_\(board.id?.uuidString ?? "")") {
@@ -270,5 +337,103 @@ struct BackgroundPickerView: View {
     private func customBackgroundsDirectory() -> URL {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         return appSupport.appendingPathComponent("Worksy/Backgrounds")
+    }
+
+    // MARK: - Online Image Thumbnail
+
+    @ViewBuilder
+    private func onlineImageThumbnail(_ name: String, url: String) -> some View {
+        let localPath = customBackgroundsDirectory().appendingPathComponent("\(name.replacingOccurrences(of: " ", with: "_")).jpg").path
+        let isDownloaded = FileManager.default.fileExists(atPath: localPath)
+        let isSelected = board.backgroundImage == localPath
+
+        Button(action: {
+            if isDownloaded {
+                board.backgroundImage = localPath
+                try? viewContext.save()
+            } else {
+                downloadImage(from: url, name: name)
+            }
+        }) {
+            ZStack {
+                if isDownloaded, let nsImage = NSImage(contentsOfFile: localPath) {
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(height: 70)
+                        .clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                } else {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(AppTheme.surface)
+                        .frame(height: 70)
+                        .overlay(
+                            VStack(spacing: 2) {
+                                Image(systemName: "arrow.down.circle")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(Color(hex: "#00D68F"))
+                                Text(name)
+                                    .font(.system(size: 8))
+                                    .foregroundColor(AppTheme.textMuted)
+                                    .lineLimit(1)
+                            }
+                        )
+                }
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isSelected ? Color(hex: "#00D68F") : Color.clear, lineWidth: 2)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Download Image
+
+    private func downloadImage(from urlString: String, name: String) {
+        guard let url = URL(string: urlString) else {
+            downloadError = "Invalid URL"
+            return
+        }
+
+        isDownloading = true
+        downloadError = ""
+
+        let destDir = customBackgroundsDirectory()
+        let destPath = destDir.appendingPathComponent("\(name.replacingOccurrences(of: " ", with: "_")).jpg")
+
+        URLSession.shared.dataTask(with: url) { data, response, error in
+            DispatchQueue.main.async {
+                isDownloading = false
+
+                if let error = error {
+                    downloadError = error.localizedDescription
+                    return
+                }
+
+                guard let data = data, let nsImage = NSImage(data: data), nsImage.isValid else {
+                    downloadError = "Failed to download image"
+                    return
+                }
+
+                do {
+                    if !FileManager.default.fileExists(atPath: destDir.path) {
+                        try FileManager.default.createDirectory(at: destDir, withIntermediateDirectories: true)
+                    }
+                    try data.write(to: destPath)
+                    board.backgroundImage = destPath.path
+                    try? viewContext.save()
+                } catch {
+                    downloadError = "Failed to save: \(error.localizedDescription)"
+                }
+            }
+        }.resume()
+    }
+
+    private func downloadFromURL() {
+        guard !imageURL.isEmpty else { return }
+        let name = "custom_\(UUID().uuidString.prefix(8))"
+        downloadImage(from: imageURL, name: name)
+        imageURL = ""
     }
 }

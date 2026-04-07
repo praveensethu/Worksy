@@ -5,6 +5,7 @@ public class BoardColumn: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var name: String?
     @NSManaged public var sortOrder: Int16
+    @NSManaged public var wipLimit: Int16
     @NSManaged public var board: Board?
     @NSManaged public var cards: NSSet?
 
@@ -14,7 +15,16 @@ public class BoardColumn: NSManagedObject {
         self.id = UUID()
         self.name = name
         self.sortOrder = 0
+        self.wipLimit = 0
         self.board = board
+    }
+
+    var activeCards: [Card] {
+        (cards?.allObjects as? [Card] ?? []).filter { !$0.isArchived }
+    }
+
+    var isOverWipLimit: Bool {
+        wipLimit > 0 && activeCards.count > Int(wipLimit)
     }
 }
 
