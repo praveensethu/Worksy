@@ -8,6 +8,7 @@ struct KanbanBoardView: View {
 
     @State private var showDeleteColumnConfirmation = false
     @State private var showBackgroundPicker = false
+    @State private var cachedBackgroundImage: NSImage?
 
     private var accentColor: Color {
         AppTheme.accentColor(for: board.color ?? "#007AFF")
@@ -58,21 +59,23 @@ struct KanbanBoardView: View {
                 }
             }
         }
+        .onAppear { loadBackgroundAsync() }
+        .onChange(of: board.backgroundImage) { _ in loadBackgroundAsync() }
     }
 
     // MARK: - Background Layer
 
     @ViewBuilder
     private var backgroundLayer: some View {
-        if let bgImage = board.backgroundImage, !bgImage.isEmpty, let nsImage = loadBackgroundImage(bgImage) {
+        if let nsImage = cachedBackgroundImage {
             ZStack {
                 Image(nsImage: nsImage)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .ignoresSafeArea()
 
-                // Dark overlay for readability
-                Color.black.opacity(0.45)
+                // Dark overlay for readability — text and cards must be readable
+                Color.black.opacity(0.55)
                     .ignoresSafeArea()
             }
         } else {
@@ -80,8 +83,20 @@ struct KanbanBoardView: View {
         }
     }
 
+    private func loadBackgroundAsync() {
+        guard let identifier = board.backgroundImage, !identifier.isEmpty else {
+            cachedBackgroundImage = nil
+            return
+        }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let image = loadBackgroundImage(identifier)
+            DispatchQueue.main.async {
+                cachedBackgroundImage = image
+            }
+        }
+    }
+
     private func loadBackgroundImage(_ identifier: String) -> NSImage? {
-        // Check if it's a bundled image (just a filename like "mountain.jpg")
         if !identifier.contains("/") {
             let name = identifier.replacingOccurrences(of: ".jpg", with: "")
                 .replacingOccurrences(of: ".png", with: "")
@@ -91,7 +106,6 @@ struct KanbanBoardView: View {
                 return NSImage(contentsOf: url)
             }
         }
-        // Otherwise treat as a full file path (custom image)
         return NSImage(contentsOfFile: identifier)
     }
 
@@ -107,10 +121,12 @@ struct KanbanBoardView: View {
             Text(board.name ?? "Untitled Board")
                 .font(.system(size: 20, weight: .bold))
                 .foregroundColor(AppTheme.textPrimary)
+                .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
 
             Text("\(sortedColumns.count) columns")
                 .font(.system(size: 13))
                 .foregroundColor(AppTheme.textMuted)
+                .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
 
             Spacer()
 

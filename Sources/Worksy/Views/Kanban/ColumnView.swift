@@ -57,7 +57,7 @@ struct ColumnView: View {
             }
         }
         .frame(width: 280)
-        .background(isDropTargeted ? accentColor.opacity(0.08) : AppTheme.card)
+        .background(isDropTargeted ? accentColor.opacity(0.08) : AppTheme.card.opacity(0.92))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .strokeBorder(
