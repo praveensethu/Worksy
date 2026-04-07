@@ -3,35 +3,36 @@ import SwiftUI
 
 enum AppIconGenerator {
     /// Generates a 512x512 programmatic app icon and sets it as the dock icon.
+    /// Uses warm colors (orange, coral, emerald) — NOT blue.
     static func setAppIcon() {
         let size = NSSize(width: 512, height: 512)
         let image = NSImage(size: size, flipped: false) { rect in
-            // Dark background with rounded corners
-            let bgColor = NSColor(red: 0x1A / 255.0, green: 0x1A / 255.0, blue: 0x2E / 255.0, alpha: 1.0)
+            // Warm dark background — charcoal, not navy
+            let bgColor = NSColor(red: 0x1C / 255.0, green: 0x1C / 255.0, blue: 0x1E / 255.0, alpha: 1.0)
             let bgPath = NSBezierPath(roundedRect: rect, xRadius: 90, yRadius: 90)
             bgColor.setFill()
             bgPath.fill()
 
-            // Subtle radial gradient overlay for depth
+            // Warm gradient overlay (orange tint)
             let gradient = NSGradient(
                 colorsAndLocations:
-                    (NSColor.white.withAlphaComponent(0.06), 0.0),
+                    (NSColor(red: 1.0, green: 0.6, blue: 0.2, alpha: 0.08), 0.0),
                     (NSColor.clear, 1.0)
             )
             gradient?.draw(in: bgPath, relativeCenterPosition: NSPoint(x: -0.2, y: 0.3))
 
-            // Three kanban column bars
+            // Three kanban column bars — warm palette: Amber, Coral, Emerald
             let barWidth: CGFloat = 100
             let barSpacing: CGFloat = 30
             let totalWidth = barWidth * 3 + barSpacing * 2
             let startX = (rect.width - totalWidth) / 2
 
             let barConfigs: [(color: NSColor, height: CGFloat, yOffset: CGFloat)] = [
-                // Electric Blue - left bar (tallest)
-                (NSColor(red: 0x0F / 255.0, green: 0x9B / 255.0, blue: 0xF7 / 255.0, alpha: 1.0), 240, 160),
-                // Hot Pink - center bar (medium)
-                (NSColor(red: 0xFF / 255.0, green: 0x2D / 255.0, blue: 0x78 / 255.0, alpha: 1.0), 200, 180),
-                // Emerald - right bar (shorter)
+                // Amber/Orange - left bar (tallest)
+                (NSColor(red: 0xFF / 255.0, green: 0xB8 / 255.0, blue: 0x00 / 255.0, alpha: 1.0), 240, 160),
+                // Coral/Red - center bar (medium)
+                (NSColor(red: 0xFF / 255.0, green: 0x6B / 255.0, blue: 0x6B / 255.0, alpha: 1.0), 200, 180),
+                // Emerald/Green - right bar (shorter)
                 (NSColor(red: 0x00 / 255.0, green: 0xD6 / 255.0, blue: 0x8F / 255.0, alpha: 1.0), 160, 200),
             ]
 
@@ -70,7 +71,7 @@ enum AppIconGenerator {
             pagePath.fill()
 
             // Lines on the page
-            let lineColor = NSColor(red: 0x1A / 255.0, green: 0x1A / 255.0, blue: 0x2E / 255.0, alpha: 0.3)
+            let lineColor = NSColor(red: 0x1C / 255.0, green: 0x1C / 255.0, blue: 0x1E / 255.0, alpha: 0.3)
             lineColor.setStroke()
             for i in 0..<4 {
                 let lineY = pageRect.minY + 15 + CGFloat(i) * 16
@@ -91,12 +92,12 @@ enum AppIconGenerator {
             NSColor(red: 0xD0 / 255.0, green: 0xD0 / 255.0, blue: 0xD8 / 255.0, alpha: 1.0).setFill()
             earPath.fill()
 
-            // "WT" text at the bottom center
+            // "Ws" text at the bottom center — warm amber color
             let textAttributes: [NSAttributedString.Key: Any] = [
                 .font: NSFont.systemFont(ofSize: 48, weight: .bold),
-                .foregroundColor: NSColor.white.withAlphaComponent(0.9),
+                .foregroundColor: NSColor(red: 0xFF / 255.0, green: 0xB8 / 255.0, blue: 0x00 / 255.0, alpha: 0.9),
             ]
-            let wtString = NSAttributedString(string: "WT", attributes: textAttributes)
+            let wtString = NSAttributedString(string: "Ws", attributes: textAttributes)
             let textSize = wtString.size()
             let textOrigin = NSPoint(
                 x: (rect.width - textSize.width) / 2 - 30,

@@ -3,14 +3,14 @@
 import PackageDescription
 
 let package = Package(
-    name: "WorkTracker",
+    name: "Worksy",
     platforms: [
         .macOS(.v14)
     ],
     targets: [
         .executableTarget(
-            name: "WorkTracker",
-            path: "Sources/WorkTracker",
+            name: "Worksy",
+            path: "Sources/Worksy",
             resources: [.copy("Resources/Backgrounds")]
         )
     ]

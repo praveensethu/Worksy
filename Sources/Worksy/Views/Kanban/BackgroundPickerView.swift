@@ -6,7 +6,7 @@ struct BackgroundPickerView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @ObservedObject var board: Board
 
-    private let bundledImages = [
+    static let bundledImages = [
         "mountain.jpg", "forest.jpg", "ocean.jpg", "aurora.jpg",
         "sunset.jpg", "lake.jpg", "stars.jpg", "waterfall.jpg"
     ]
@@ -15,9 +15,39 @@ struct BackgroundPickerView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Board Background")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(AppTheme.textPrimary)
+            HStack {
+                Text("Board Background")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(AppTheme.textPrimary)
+
+                Spacer()
+
+                // Daily rotation toggle
+                Toggle(isOn: Binding(
+                    get: { UserDefaults.standard.bool(forKey: "dailyRotate_\(board.id?.uuidString ?? "")") },
+                    set: { newValue in
+                        UserDefaults.standard.set(newValue, forKey: "dailyRotate_\(board.id?.uuidString ?? "")")
+                        if newValue {
+                            applyDailyBackground()
+                        }
+                    }
+                )) {
+                    Text("Daily")
+                        .font(.system(size: 11))
+                        .foregroundColor(AppTheme.textSecondary)
+                }
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+
+                // Shuffle button
+                Button(action: { shuffleBackground() }) {
+                    Image(systemName: "shuffle")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(AppTheme.textSecondary)
+                }
+                .buttonStyle(.plain)
+                .help("Random background")
+            }
 
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 10) {
@@ -25,7 +55,7 @@ struct BackgroundPickerView: View {
                     noneOption
 
                     // Bundled images
-                    ForEach(bundledImages, id: \.self) { filename in
+                    ForEach(Self.bundledImages, id: \.self) { filename in
                         bundledImageThumbnail(filename)
                     }
 
@@ -40,8 +70,34 @@ struct BackgroundPickerView: View {
             }
         }
         .padding(16)
-        .frame(width: 340, height: 360)
+        .frame(width: 380, height: 400)
         .background(AppTheme.background)
+        .onAppear {
+            if UserDefaults.standard.bool(forKey: "dailyRotate_\(board.id?.uuidString ?? "")") {
+                applyDailyBackground()
+            }
+        }
+    }
+
+    // MARK: - Daily Rotation
+
+    private func applyDailyBackground() {
+        let allImages = Self.bundledImages + customImagePaths()
+        guard !allImages.isEmpty else { return }
+        let dayOfYear = Calendar.current.ordinality(of: .day, in: .year, for: Date()) ?? 0
+        let index = dayOfYear % allImages.count
+        board.backgroundImage = allImages[index]
+        try? viewContext.save()
+    }
+
+    private func shuffleBackground() {
+        let allImages = Self.bundledImages + customImagePaths()
+        guard !allImages.isEmpty else { return }
+        let current = board.backgroundImage ?? ""
+        var candidates = allImages.filter { $0 != current }
+        if candidates.isEmpty { candidates = allImages }
+        board.backgroundImage = candidates.randomElement()
+        try? viewContext.save()
     }
 
     // MARK: - None Option
@@ -213,6 +269,6 @@ struct BackgroundPickerView: View {
 
     private func customBackgroundsDirectory() -> URL {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        return appSupport.appendingPathComponent("WorkTracker/Backgrounds")
+        return appSupport.appendingPathComponent("Worksy/Backgrounds")
     }
 }

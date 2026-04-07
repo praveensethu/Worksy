@@ -45,7 +45,7 @@ struct WelcomeView: View {
                     }
                 }
 
-                Text("WorkTracker")
+                Text("Worksy")
                     .font(.system(size: 40, weight: .bold, design: .rounded))
                     .foregroundStyle(
                         LinearGradient(

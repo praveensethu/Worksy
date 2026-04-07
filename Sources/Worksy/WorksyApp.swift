@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct WorkTrackerApp: App {
+struct WorksyApp: App {
     let persistence = PersistenceController.shared
 
     init() {
@@ -14,7 +14,7 @@ struct WorkTrackerApp: App {
     }
 
     var body: some Scene {
-        WindowGroup("WorkTracker") {
+        WindowGroup("Worksy") {
             ContentView()
                 .environment(\.managedObjectContext, persistence.container.viewContext)
         }

@@ -114,6 +114,16 @@ struct KanbanBoardView: View {
 
             Spacer()
 
+            // Shuffle background button
+            Button(action: { shuffleBackground() }) {
+                Image(systemName: "shuffle")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(AppTheme.textSecondary)
+            }
+            .buttonStyle(.plain)
+            .help("Random background")
+
+            // Background picker button
             Button(action: { showBackgroundPicker.toggle() }) {
                 Image(systemName: "photo.on.rectangle")
                     .font(.system(size: 14, weight: .medium))
@@ -152,6 +162,15 @@ struct KanbanBoardView: View {
     }
 
     // MARK: - CRUD Operations
+
+    private func shuffleBackground() {
+        let allImages = BackgroundPickerView.bundledImages
+        let current = board.backgroundImage ?? ""
+        var candidates = allImages.filter { $0 != current }
+        if candidates.isEmpty { candidates = allImages }
+        board.backgroundImage = candidates.randomElement()
+        try? viewContext.save()
+    }
 
     private func addColumn() {
         let existingColumns = sortedColumns
