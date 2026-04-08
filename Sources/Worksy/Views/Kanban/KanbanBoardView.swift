@@ -46,9 +46,13 @@ struct KanbanBoardView: View {
                         ForEach(sortedColumns, id: \.id) { column in
                             ColumnView(column: column, accentColor: accentColor)
                                 .dropDestination(for: String.self) { items, _ in
-                                    guard let id = items.first, id.count == 36,
-                                          let draggedId = UUID(uuidString: id) else { return false }
-                                    return handleColumnReorder(draggedColumnId: draggedId, targetColumn: column)
+                                    guard let id = items.first else { return false }
+                                    // Column reorder: prefixed with "col:"
+                                    if id.hasPrefix("col:"),
+                                       let draggedId = UUID(uuidString: String(id.dropFirst(4))) {
+                                        return handleColumnReorder(draggedColumnId: draggedId, targetColumn: column)
+                                    }
+                                    return false
                                 } isTargeted: { _ in }
                         }
 
@@ -219,6 +223,7 @@ struct KanbanBoardView: View {
                 BackgroundPickerView(board: board)
                     .environment(\.managedObjectContext, viewContext)
             }
+
         }
     }
 

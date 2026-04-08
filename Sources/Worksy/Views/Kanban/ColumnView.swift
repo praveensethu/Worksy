@@ -13,6 +13,7 @@ struct ColumnView: View {
     @State private var isDropTargeted = false
     @State private var showWipSettings = false
     @State private var wipLimitText = ""
+    @FocusState private var isRenameFieldFocused: Bool
 
     private var sortedCards: [Card] {
         column.activeCards
@@ -53,7 +54,8 @@ struct ColumnView: View {
             }
             .frame(maxHeight: .infinity)
             .dropDestination(for: String.self) { droppedItems, _ in
-                guard let cardIdString = droppedItems.first else { return false }
+                guard let cardIdString = droppedItems.first,
+                      !cardIdString.hasPrefix("col:") else { return false }
                 return handleCardDrop(cardIdString: cardIdString, atIndex: sortedCards.count)
             } isTargeted: { targeted in
                 isDropTargeted = targeted
@@ -71,7 +73,7 @@ struct ColumnView: View {
         .animation(.easeInOut(duration: 0.15), value: isDropTargeted)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .shadow(color: .black.opacity(0.25), radius: 8, x: 0, y: 4)
-        .draggable(column.id?.uuidString ?? "col:") {
+        .draggable("col:" + (column.id?.uuidString ?? "")) {
             Text(column.name ?? "Column")
                 .font(.system(size: 13, weight: .semibold))
                 .padding(10)
@@ -111,10 +113,17 @@ struct ColumnView: View {
     private var columnHeader: some View {
         HStack {
             if isRenaming {
-                TextField("Column name", text: $renameText, onCommit: { commitRename() })
+                TextField("Column name", text: $renameText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(AppTheme.textPrimary)
+                    .focused($isRenameFieldFocused)
+                    .onSubmit { commitRename() }
+                    .onExitCommand { isRenaming = false; renameText = "" }
+                    .onChange(of: isRenameFieldFocused) { focused in
+                        if !focused { commitRename() }
+                    }
+                    .onAppear { isRenameFieldFocused = true }
             } else {
                 Text(column.name ?? "Untitled")
                     .font(.system(size: 13, weight: .semibold))
@@ -151,18 +160,27 @@ struct ColumnView: View {
                     .foregroundColor(AppTheme.textSecondary)
             }
             .buttonStyle(.plain)
-        }
-        .contextMenu {
-            Button("Rename") {
-                renameText = column.name ?? ""
-                isRenaming = true
+
+            Menu {
+                Button("Rename") {
+                    renameText = column.name ?? ""
+                    isRenaming = true
+                }
+                Button("Set WIP Limit") {
+                    wipLimitText = column.wipLimit > 0 ? "\(column.wipLimit)" : ""
+                    showWipSettings = true
+                }
+                Divider()
+                Button("Move Left") { moveColumn(direction: -1) }
+                Button("Move Right") { moveColumn(direction: 1) }
+                Divider()
+                Button("Delete Column", role: .destructive) { showDeleteConfirmation = true }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(AppTheme.textSecondary)
             }
-            Button("Set WIP Limit") {
-                wipLimitText = column.wipLimit > 0 ? "\(column.wipLimit)" : ""
-                showWipSettings = true
-            }
-            Divider()
-            Button("Delete", role: .destructive) { showDeleteConfirmation = true }
+            .buttonStyle(.plain)
         }
     }
 
@@ -223,6 +241,20 @@ struct ColumnView: View {
             try? viewContext.save()
         }
         isRenaming = false; renameText = ""
+    }
+
+    private func moveColumn(direction: Int) {
+        guard let board = column.board else { return }
+        var columns = (board.columns?.allObjects as? [BoardColumn] ?? [])
+            .sorted { $0.sortOrder < $1.sortOrder }
+        guard let currentIndex = columns.firstIndex(where: { $0.id == column.id }) else { return }
+        let newIndex = currentIndex + direction
+        guard newIndex >= 0, newIndex < columns.count else { return }
+        columns.swapAt(currentIndex, newIndex)
+        for (i, col) in columns.enumerated() { col.sortOrder = Int16(i) }
+        // Notify the board so KanbanBoardView re-renders the column order
+        board.objectWillChange.send()
+        try? viewContext.save()
     }
 
     private func deleteColumn() {

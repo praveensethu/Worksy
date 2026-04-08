@@ -98,6 +98,7 @@ struct CardView: View {
             Button(card.isPinned ? "Unpin" : "Pin to Top") { togglePin() }
             Button("Archive") { archiveCard() }
             Divider()
+            Button("Mark as Done") { markAsDone() }
             Button("Delete", role: .destructive) { showDeleteConfirmation = true }
         }
         .sheet(isPresented: $showDetailSheet) {
@@ -133,6 +134,16 @@ struct CardView: View {
             field: "isArchived", oldValue: "false", newValue: "true",
             context: viewContext
         )
+        try? viewContext.save()
+    }
+
+    private func markAsDone() {
+        AuditService.shared.logDelete(
+            entityType: "Card", entityId: card.id ?? UUID(),
+            details: ["title": card.title ?? "Unknown", "column": card.column?.name ?? "Unknown", "reason": "marked_done"],
+            context: viewContext
+        )
+        viewContext.delete(card)
         try? viewContext.save()
     }
 

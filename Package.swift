@@ -12,6 +12,11 @@ let package = Package(
             name: "Worksy",
             path: "Sources/Worksy",
             resources: [.copy("Resources/Backgrounds")]
+        ),
+        .testTarget(
+            name: "WorksyTests",
+            dependencies: ["Worksy"],
+            path: "Tests/WorksyTests"
         )
     ]
 )
