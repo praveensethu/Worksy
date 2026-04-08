@@ -7,6 +7,7 @@ public class Note: NSManagedObject {
     @NSManaged public var content: Data?
     @NSManaged public var createdAt: Date?
     @NSManaged public var updatedAt: Date?
+    @NSManaged public var isPlainText: Bool
     @NSManaged public var folder: Folder?
 
     convenience init(context: NSManagedObjectContext, title: String, folder: Folder? = nil) {

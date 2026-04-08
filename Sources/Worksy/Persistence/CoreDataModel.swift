@@ -175,7 +175,12 @@ enum CoreDataModel {
         noteUpdatedAt.name = "updatedAt"
         noteUpdatedAt.attributeType = .dateAttributeType
 
-        noteEntity.properties = [noteId, noteTitle, noteContent, noteCreatedAt, noteUpdatedAt]
+        let noteIsPlainText = NSAttributeDescription()
+        noteIsPlainText.name = "isPlainText"
+        noteIsPlainText.attributeType = .booleanAttributeType
+        noteIsPlainText.defaultValue = false
+
+        noteEntity.properties = [noteId, noteTitle, noteContent, noteCreatedAt, noteUpdatedAt, noteIsPlainText]
 
         // MARK: - AuditLog Attributes
 
